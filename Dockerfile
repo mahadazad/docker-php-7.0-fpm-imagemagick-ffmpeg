@@ -1,6 +1,7 @@
 FROM ubuntu:14.04
 
-ENV         FFMPEG_VERSION=3.1.4 \
+ENV         DEBIAN_FRONTEND=noninteractive \
+            FFMPEG_VERSION=3.1.4 \
             FAAC_VERSION=1.28    \
             FDKAAC_VERSION=0.1.4 \
             LAME_VERSION=3.99.5  \
@@ -16,18 +17,17 @@ ENV         FFMPEG_VERSION=3.1.4 \
             PKG_CONFIG_PATH=/usr/local/lib/pkgconfig \
             SRC=/usr/local
 
-# install PHP
-RUN sudo DEBIAN_FRONTEND=noninteractive \
+RUN echo "#!/bin/sh\nexit 0" > /usr/sbin/policy-rc.d && \
     apt-get -y update && \
-    apt-get -y install software-properties-common python-software-properties && \
+    apt-get -y --force-yes install software-properties-common python-software-properties && \
     add-apt-repository ppa:ondrej/php && \
-    apt-get -y update && \
+    apt-get -y --force-yes update && \
     apt-get install -y --force-yes \
     curl \
     git-core \
     python-pip \
-    php7.0 php7.0-mcrypt php7.0-mbstring php7.0-curl php7.0-cli php7.0-mysql php7.0-gd php7.0-intl php7.0-xsl \
-    php7.0-fpm php7.0-bz2 php7.0-zip php7.0-dev && \
+    php7.0-fpm php7.0-mcrypt php7.0-mbstring php7.0-curl php7.0-mysql php7.0-gd php7.0-intl php7.0-xsl \
+    php7.0-cgi php7.0-common php7.0-cli php7.0-bz2 php7.0-zip php7.0-dev && \
     php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && \
     php composer-setup.php && \
     php -r "unlink('composer-setup.php');" && \
@@ -41,13 +41,11 @@ RUN sudo DEBIAN_FRONTEND=noninteractive \
     cd xdebug && phpize && ./configure --enable-xdebug && make && make install && cd .. && rm -rf xdebug && \
     sed "s/;cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/" -i /etc/php/7.0/fpm/php.ini
 
-# install ImageMagick
-RUN curl https://www.imagemagick.org/download/ImageMagick.tar.gz -o ImageMagick.tar.gz && \
+RUN curl -L https://www.imagemagick.org/download/ImageMagick.tar.gz -o ImageMagick.tar.gz && \
     tar xvzf ImageMagick.tar.gz && cd ImageMagick* && \
     ./configure --with-librsvg && make && make install
-
-# install FFMPEG
-RUN      buildDeps="autoconf \
+    
+RUN buildDeps="autoconf \
                     automake \
                     cmake \
                     curl \
@@ -64,8 +62,8 @@ RUN      buildDeps="autoconf \
                     libssl-dev \
                     zlib1g-dev" && \
         export MAKEFLAGS="-j$(($(nproc) + 1))" && \
-        apt-get -yqq update && \
-        apt-get install -yq --no-install-recommends ${buildDeps} ca-certificates && \
+        apt-get -yqq --force-yes update && \
+        apt-get install -yq --force-yes --no-install-recommends ${buildDeps} ca-certificates && \
 
         DIR=$(mktemp -d) && cd ${DIR} && \
         ## yasm http://yasm.tortall.net/
@@ -218,11 +216,14 @@ RUN      buildDeps="autoconf \
         rm -rf ${DIR} && \
         ## cleanup
        cd && \
-       apt-get purge -y ${buildDeps} && \
-       apt-get autoremove -y && \
-       apt-get clean -y && \
+       apt-get purge -y --force-yes ${buildDeps} && \
+#       apt-get autoremove -y --force-yes && \
+#       apt-get clean -y --force-yes && \
        rm -rf /var/lib/apt/lists && \
        ffmpeg -buildconf
 
 EXPOSE 9000
+
+RUN find / -iname *fpm*
+
 
